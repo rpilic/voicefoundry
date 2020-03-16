@@ -6,17 +6,17 @@ class ServerlessPlugin {
         this.provider = this.serverless.getProvider("aws");
         this.region = this.serverless.service.provider.region;
         this.hooks = {
-            "after:deploy:deploy": this.afterDeployResources.bind(this) //this.afterDeployResources
+            "after:deploy:deploy": this.afterDeployResources.bind(this)
         };
     }
 
     afterDeployResources() {
         const FunctionName = this.serverless.service.getFunction("dataSave").name;
-        const payload = this.serverless.service.custom.filesToUpload;
+        const Payload = JSON.stringify(this.serverless.service.custom.filesToUpload);
 
         return this.provider.request("Lambda", "invoke", {
             FunctionName,
-            Payload: JSON.stringify(payload)
+            Payload
         });
     }
 }
