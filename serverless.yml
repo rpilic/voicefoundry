@@ -1,0 +1,99 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: voicefoundry
+# app and org for use with dashboard.serverless.com
+app: voicefoundry-app
+org: robpilic
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-west-2
+  profile: voicefoundry
+  iamRoleStatements:
+    - Effect: Allow
+      Action: s3:ListBucket
+      Resource: !Join ['', [ 'arn:aws:s3:::', !Ref ServerlessDeploymentBucket] ]
+    - Effect: Allow
+      Action: s3:PutObject
+      Resource: !Join ['', [ 'arn:aws:s3:::', !Ref ServerlessDeploymentBucket, '/*' ] ]
+    - Effect: Allow
+      Action: s3:GetObject
+      Resource: !Join [ '/', [ !GetAtt S3Bucket.Arn, '*' ]]
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:BatchWriteItem
+      Resource: !GetAtt DataTable.Arn
+
+plugins:
+  - serverless-plugin-upload-s3
+  - process-file-data-plugin
+
+custom: # TODO: replace with env vars or a file
+  s3Bucket: voicefoundry-robpilic-codeproject
+  logRetentionDays: 14
+  dataFileName: data.json
+  filesToUpload:
+    - fileName: ${self:custom.dataFileName}
+      localPath: data/${self:custom.dataFileName}
+      s3Bucket: ${self:custom.s3Bucket}
+
+functions:
+    dataSave:
+      handler: handler.save
+      name: dataSave-${self:provider.stage}
+      memorySize: 512
+      timeout: 10
+      environment:
+          TABLE_NAME: !Ref DataTable
+      # events:
+      #   - s3:
+      #     bucket: ${self:custom.s3Bucket}
+      #     event: s3:ObjectCreated:*
+
+resources:
+  Resources:
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+          BucketName: ${self:custom.s3Bucket}
+
+    DataTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    CloudwatchLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: ${self:functions.dataSave.name}
+        RetentionInDays: ${self:custom.logRetentionDays}
+
+    # AlarmSnsTopic:
+    #   Properties:
+    #     DisplayName: CloudWatch Alarm notofication topic
+    #     TopicName: alarm-notification-topic
+    #     Subscription:
+    #       - Protocol: Email
+    #         Endpoint: !Ref AlarmEmail

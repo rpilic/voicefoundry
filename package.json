@@ -1,0 +1,22 @@
+{
+    "name": "voicefoundry-code-project",
+    "version": "1.0.0",
+    "description": "Rob Pilic code project for VoiceFoundry",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/rpilic/voicefoundry.git"
+    },
+    "author": "rob.pilic@gmail.com",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/rpilic/voicefoundry/issues"
+    },
+    "homepage": "https://github.com/rpilic/voicefoundry#readme",
+    "dependencies": {
+        "serverless-plugin-upload-s3": "^1.0.1"
+    }
+}
