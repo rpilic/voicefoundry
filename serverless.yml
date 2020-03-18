@@ -8,7 +8,7 @@ provider:
   runtime: nodejs12.x
   stage: dev
   region: us-west-2
-  profile: voicefoundry
+  profile: ${file(./config.json):awsProfile}
   iamRoleStatements:
     - Effect: Allow
       Action: s3:ListBucket
@@ -30,8 +30,8 @@ plugins:
   - process-file-data-plugin
 
 custom: # TODO: replace with env vars or a file
-  s3Bucket: voicefoundry-robpilic-codeproject
-  logRetentionDays: 14
+  s3Bucket: ${file(./config.json):s3Bucket}
+  logRetentionDays: ${file(./config.json):logRetentionDays,14}
   dataFileName: data.json
   filesToUpload:
     - fileName: ${self:custom.dataFileName}

@@ -1,0 +1,5 @@
+{
+    "awsProfile": "voicefoundry",
+    "s3Bucket": "voicefoundry-robpilic-codeproject",
+    "logRetentionDays": 14
+}

@@ -4,7 +4,7 @@
     "description": "Rob Pilic code project for VoiceFoundry",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "deploy": "npm install && serverless deploy"
     },
     "repository": {
         "type": "git",
