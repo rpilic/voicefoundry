@@ -22,12 +22,19 @@ provider:
     - Effect: Allow
       Action:
         - dynamodb:PutItem
-        - dynamodb:BatchWriteItem
       Resource: !GetAtt DataTable.Arn
 
 plugins:
   - serverless-plugin-upload-s3
   - process-file-data-plugin
+
+package:
+  exclude:
+    - node_modules/**
+    - config.json
+    - .*prettier*
+    - package*
+    - README.md
 
 custom: # TODO: replace with env vars or a file
   s3Bucket: ${file(./config.json):s3Bucket}
