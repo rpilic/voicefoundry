@@ -1,5 +1,6 @@
 {
+    "alarmEmail": "rob.pilic@gmail.com",
     "awsProfile": "voicefoundry",
-    "s3Bucket": "voicefoundry-robpilic-codeproject",
-    "logRetentionDays": 14
+    "logRetentionDays": 14,
+    "s3Bucket": "voicefoundry-robpilic-codeproject"
 }

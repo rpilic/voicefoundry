@@ -32,18 +32,19 @@ package:
   exclude:
     - node_modules/**
     - config.json
-    - .*prettier*
+    - .prettier*
     - package*
     - README.md
 
-custom: # TODO: replace with env vars or a file
-  s3Bucket: ${file(./config.json):s3Bucket}
-  logRetentionDays: ${file(./config.json):logRetentionDays,14}
+custom:
+  alarmEmail: ${file(./config.json):alarmEmail}
   dataFileName: data.json
   filesToUpload:
     - fileName: ${self:custom.dataFileName}
       localPath: data/${self:custom.dataFileName}
       s3Bucket: ${self:custom.s3Bucket}
+  logRetentionDays: ${file(./config.json):logRetentionDays,14}
+  s3Bucket: ${file(./config.json):s3Bucket}
 
 functions:
     dataSave:
@@ -84,10 +85,34 @@ resources:
         LogGroupName: ${self:functions.dataSave.name}
         RetentionInDays: ${self:custom.logRetentionDays}
 
-    # AlarmSnsTopic:
-    #   Properties:
-    #     DisplayName: CloudWatch Alarm notofication topic
-    #     TopicName: alarm-notification-topic
-    #     Subscription:
-    #       - Protocol: Email
-    #         Endpoint: !Ref AlarmEmail
+    AlarmSnsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: CloudWatch Alarm notification topic
+        TopicName: alarm-notification-topic
+        Subscription:
+          - Protocol: Email
+            Endpoint: ${self:custom.alarmEmail}
+
+    LambdaErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      DependsOn: AlarmSnsTopic
+      Properties:
+        ActionsEnabled: true
+        AlarmActions:
+          - !Ref AlarmSnsTopic
+        AlarmDescription: Alarms when the lambda function returns an error
+        AlarmName: !Sub robpilic/${self:provider.stage}/Errors
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:functions.dataSave.name}
+        EvaluationPeriods: 1
+        InsufficientDataActions: []
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        OKActions: []
+        Period: 60
+        Statistic: Maximum
+        Threshold: 1
+        Unit: Count
