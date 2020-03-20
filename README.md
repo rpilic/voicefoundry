@@ -1,4 +1,4 @@
-# VoiceFoundy Code Project - Rob Pilic
+# VoiceFoundry Code Project - Rob Pilic
 
 This application does the following:
 
