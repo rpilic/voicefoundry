@@ -3,7 +3,7 @@
 This application does the following:
 
 1. Deploys the CloudFormation template using the values specified in the `config.json` file
-2. Uploads the `voice_data.json` file in the `data` directory
+2. Uploads the `voice_data.json` file in the `data` directory to S3
 3. Invokes the `dataSaveVoice-dev` Lambda function to save the uploaded S3 file data to DynamoDB
 4. The DynamoDB stream from the above step invokes the `synthesize-dev` Lambda function, which:
     - Iterates through the stream records
