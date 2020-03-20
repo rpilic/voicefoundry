@@ -17,12 +17,29 @@ provider:
       Action: s3:PutObject
       Resource: !Join ['', [ 'arn:aws:s3:::', !Ref ServerlessDeploymentBucket, '/*' ] ]
     - Effect: Allow
-      Action: s3:GetObject
+      Action:
+        - s3:GetObject
+        - s3:PutObject
       Resource: !Join [ '/', [ !GetAtt S3Bucket.Arn, '*' ]]
     - Effect: Allow
       Action:
         - dynamodb:PutItem
-      Resource: !GetAtt DataTable.Arn
+      Resource:
+        - !GetAtt VoiceDataTable.Arn
+    - Effect: Allow
+      Action:
+        - dynamodb:GetRecords
+        - dynamodb:GetShardIterator
+        - dynamodb:DescribeStream
+        - dynamodb:ListStreams
+      Resource:
+        - !Join ['/', [ !GetAtt VoiceDataTable.Arn, 'stream', '*' ] ]
+    - Effect: Allow
+      Action:
+        - polly:DescribeVoices
+        - polly:SynthesizeSpeech
+      Resource: '*'
+
 
 plugins:
   - serverless-plugin-upload-s3
@@ -38,7 +55,7 @@ package:
 
 custom:
   alarmEmail: ${file(./config.json):alarmEmail}
-  dataFileName: data.json
+  dataFileName: voice_data.json
   filesToUpload:
     - fileName: ${self:custom.dataFileName}
       localPath: data/${self:custom.dataFileName}
@@ -47,17 +64,20 @@ custom:
   s3Bucket: ${file(./config.json):s3Bucket}
 
 functions:
-    dataSave:
-      handler: handler.save
-      name: dataSave-${self:provider.stage}
-      memorySize: 512
-      timeout: 10
-      environment:
-          TABLE_NAME: !Ref DataTable
-      # events:
-      #   - s3:
-      #     bucket: ${self:custom.s3Bucket}
-      #     event: s3:ObjectCreated:*
+  dataSaveVoice:
+    handler: handler.saveVoiceData
+    name: dataSaveVoice-${self:provider.stage}
+    memorySize: 512
+    timeout: 10
+    environment:
+      TABLE_NAME: !Ref VoiceDataTable
+  synthesize:
+    handler: handler.synthesize
+    name: synthesize-${self:provider.stage}
+    memorySize: 512
+    timeout: 10
+    environment:
+      S3_BUCKET: ${self:custom.s3Bucket}
 
 resources:
   Resources:
@@ -66,23 +86,16 @@ resources:
       Properties:
           BucketName: ${self:custom.s3Bucket}
 
-    DataTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        BillingMode: PAY_PER_REQUEST
-        KeySchema:
-          - AttributeName: email
-            KeyType: HASH
-        AttributeDefinitions:
-          - AttributeName: email
-            AttributeType: S
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-
-    CloudwatchLogGroup:
+    DataSaveVoiceLogGroup:
       Type: AWS::Logs::LogGroup
       Properties:
-        LogGroupName: ${self:functions.dataSave.name}
+        LogGroupName: ${self:functions.dataSaveVoice.name}
+        RetentionInDays: ${self:custom.logRetentionDays}
+
+    SynthesizeLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: ${self:functions.synthesize.name}
         RetentionInDays: ${self:custom.logRetentionDays}
 
     AlarmSnsTopic:
@@ -94,7 +107,7 @@ resources:
           - Protocol: Email
             Endpoint: ${self:custom.alarmEmail}
 
-    LambdaErrorsAlarm:
+    DataSaveVoiceLambdaErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       DependsOn: AlarmSnsTopic
       Properties:
@@ -102,11 +115,11 @@ resources:
         AlarmActions:
           - !Ref AlarmSnsTopic
         AlarmDescription: Alarms when the lambda function returns an error
-        AlarmName: !Sub robpilic/${self:provider.stage}/Errors
+        AlarmName: !Sub robpilic/${self:functions.dataSaveVoice.name}/${self:provider.stage}/Errors
         ComparisonOperator: GreaterThanOrEqualToThreshold
         Dimensions:
           - Name: FunctionName
-            Value: ${self:functions.dataSave.name}
+            Value: ${self:functions.dataSaveVoice.name}
         EvaluationPeriods: 1
         InsufficientDataActions: []
         MetricName: Errors
@@ -116,3 +129,55 @@ resources:
         Statistic: Maximum
         Threshold: 1
         Unit: Count
+
+    SyntheiszeLambdaErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      DependsOn: AlarmSnsTopic
+      Properties:
+        ActionsEnabled: true
+        AlarmActions:
+          - !Ref AlarmSnsTopic
+        AlarmDescription: Alarms when the lambda function returns an error
+        AlarmName: !Sub robpilic/${self:functions.synthesize.name}/${self:provider.stage}/Errors
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:functions.synthesize.name}
+        EvaluationPeriods: 1
+        InsufficientDataActions: []
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        OKActions: []
+        Period: 60
+        Statistic: Maximum
+        Threshold: 1
+        Unit: Count
+
+    VoiceDataTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: language
+            KeyType: RANGE
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: language
+            AttributeType: S
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    VoiceDataTrigger:
+      Type: AWS::Lambda::EventSourceMapping
+      DependsOn: SynthesizeLambdaFunction
+      Properties:
+        BatchSize: 10
+        Enabled: true
+        EventSourceArn: !GetAtt VoiceDataTable.StreamArn
+        FunctionName: ${self:functions.synthesize.name}
+        StartingPosition: LATEST

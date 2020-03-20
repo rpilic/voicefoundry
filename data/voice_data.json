@@ -1,0 +1,4 @@
+{
+    "id": "greeting",
+    "languages": [{ "en-US": "Hello, thanks for calling" }, { "it-IT": "Ciao, grazie per aver chiamato" }]
+}

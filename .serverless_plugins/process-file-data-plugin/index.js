@@ -11,7 +11,7 @@ class ServerlessPlugin {
     }
 
     afterDeployResources() {
-        const FunctionName = this.serverless.service.getFunction("dataSave").name;
+        const FunctionName = this.serverless.service.getFunction("dataSaveVoice").name;
         const Payload = JSON.stringify(this.serverless.service.custom.filesToUpload);
 
         return this.provider.request("Lambda", "invoke", {
